@@ -1,6 +1,7 @@
 import json
 from typing import Tuple
 import warnings
+import logging
 
 import certifi
 import urllib3
@@ -29,18 +30,20 @@ class CmrProcess(object):
     # __init__
     # -------------------------------------------------------------------------
     def __init__(self,
-                 mission,
-                 dateTime,
-                 lonLat=None,
-                 error=False,
-                 dayNightFlag='',
-                 logger=None) -> None:
+                 mission: str,
+                 dateTime: str,
+                 lonLat: str or None = None,
+                 error: bool = False,
+                 dayNightFlag: str = '',
+                 pageSize: int = 150,
+                 maxPages: int = 50,
+                 logger: logging.Logger or None = None) -> None:
 
         self._error = error
         self._dateTime = dateTime
         self._mission = mission
-        self._pageSize = 150
-        self._maxPages = 50
+        self._pageSize = pageSize
+        self._maxPages = maxPages
         self._logger = logger
 
         self._lonLat = lonLat

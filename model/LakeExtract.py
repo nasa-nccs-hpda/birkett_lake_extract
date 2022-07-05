@@ -11,6 +11,7 @@ from osgeo import ogr
 
 from core.model.BaseFile import BaseFile
 from core.model.SystemCommand import SystemCommand
+from core.model.GeospatialImageFile import GeospatialImageFile
 
 from birkett_lake_extract.model.CmrProcess import CmrProcess
 from birkett_lake_extract.model.libraries.daac_download import httpdl
@@ -51,7 +52,7 @@ class LakeExtract(object):
         self._bufferedDir = os.path.join(self._outDir, '4-buffered-rasters')
         self._finalBufferedDir = os.path.join(self._outDir,
                                               '5-final-buffered-rasters')
-
+        self._makeOutputDirs()
         if self._endYear > 2015:
             msg = \
                 '{} is outside the'.format(self._endYear) + \
@@ -74,11 +75,12 @@ class LakeExtract(object):
             self._startYear = 2001
 
         self._yearRange = np.arange(self._startYear, self._endYear+1)
+        self._createStr = LakeExtract._getPostStr()
 
     # -------------------------------------------------------------------------
-    # makeOutputDirs()
+    # _makeOutputDirs()
     # -------------------------------------------------------------------------
-    def makeOutputDirs(self) -> None:
+    def _makeOutputDirs(self) -> None:
         """
         Creates the output directories.
         """
@@ -103,9 +105,11 @@ class LakeExtract(object):
             tile = os.path.basename(mod44w_list[0]).split('.')[2]
             maxExtentFilePath = self._makeMaxExtent(mod44w_list, tile)
             maxExtentClippedFilePath = self._clipMaxExtent(maxExtentFilePath)
+
         except RuntimeError:
+
             # ---
-            # If there are more than one tiles, try one that isn't outside of
+            # If there are more than one tile, try one that isn't outside of
             # extent.
             # ---
             mod44w_list = self._getMOD44W(index=1)
@@ -117,18 +121,31 @@ class LakeExtract(object):
             self._polygonizeLake(maxExtentClippedFilePath)
         cleanedPolygonLakeFilePath = \
             self._cleanPolygon(polygonizedLakeFilePath)
-        bufferedPolygonFilePath = os.path.join(
-            self._polygonDir, '{}_initial_buffered.shp'.format(self._lakeName))
+
+        bufferedPolygonFilePath = \
+            os.path.join(self._polygonDir,
+                         'Lake.{}.InitialBuffered.{}.shp'.format(
+                             self._lakeName,
+                             self._createStr))
+
         bufferedPolygonFilePath = self._createBuffer(
-            cleanedPolygonLakeFilePath, bufferedPolygonFilePath,
+            cleanedPolygonLakeFilePath,
+            bufferedPolygonFilePath,
             LakeExtract.BUFFER_1PX)
+
         dissolvedPolygonOutputPath = \
             self._dissolveBuffered(bufferedPolygonFilePath)
+
         targetLakeFilePath = self._getTargetLake(dissolvedPolygonOutputPath)
+
         bufferedFullFilePath = os.path.join(
-            self._polygonDir, '{}_buffered.shp'.format(self._lakeName))
-        bufferedFullFilePath = self._createBuffer(
-            targetLakeFilePath, bufferedFullFilePath, LakeExtract.BUFFER_6PX)
+            self._polygonDir, 'Lake.{}.Buffered.{}.shp'.format(self._lakeName,
+                                                               self._createStr))
+
+        bufferedFullFilePath = self._createBuffer(targetLakeFilePath,
+                                                  bufferedFullFilePath,
+                                                  LakeExtract.BUFFER_6PX)
+
         self._extractLakePerYear(mod44w_list, bufferedFullFilePath)
 
     # -------------------------------------------------------------------------
@@ -205,8 +222,8 @@ class LakeExtract(object):
         maxExtent = np.where(maxExtent > 0, 1, 0)
         maxExtentOutFilePath = os.path.join(
             self._maxExtentDir,
-            'MOD44W.{}.MaxExtent.{}.{}.tif'.format(
-                tile, self._startYear, self._endYear)
+            'MOD44W.{}.MaxExtent.{}.{}.{}.tif'.format(
+                tile, self._startYear, self._endYear, self._createStr)
         )
         driver = gdal.GetDriverByName('GTiff')
         maxExtentOutDS = driver.Create(maxExtentOutFilePath,
@@ -233,8 +250,10 @@ class LakeExtract(object):
         """
         Open the MOD44W subdataset and read as array, add to max extent.
         """
-        subdatasetName = gdal.Open(fileName).GetSubDatasets()[0][0]
-        subdataset = gdal.Open(subdatasetName)
+        subdatasetFilePath = gdal.Open(fileName).GetSubDatasets()[0][0]
+        subdatasetGeoDS = GeospatialImageFile(fileName,
+                                              subdataset=subdatasetFilePath)
+        subdataset = subdatasetGeoDS.getDataset()
         image = subdataset.GetRasterBand(1).ReadAsArray()
         maxExtent += np.where(image == 1, 1, 0)
         return maxExtent
@@ -247,8 +266,10 @@ class LakeExtract(object):
         """
         Get transform and projection from a MOD44W product.
         """
-        subdatasetName = gdal.Open(fileName).GetSubDatasets()[0][0]
-        subdataset = gdal.Open(subdatasetName)
+        subdatasetFilePath = gdal.Open(fileName).GetSubDatasets()[0][0]
+        subdatasetGeoDS = GeospatialImageFile(fileName,
+                                              subdataset=subdatasetFilePath)
+        subdataset = subdatasetGeoDS.getDataset()
         transform = subdataset.GetGeoTransform()
         projection = subdataset.GetProjection()
         return transform, projection
@@ -277,9 +298,11 @@ class LakeExtract(object):
             raise IndexError(msg)
 
         maxExtentClippedFilename = \
-            '{}_MOD44W_max{}_{}.tif'.format(self._lakeName,
-                                            self._startYear,
-                                            self._endYear)
+            'Lake.{}.MOD44W.MaxExtentClipped.{}.{}.{}.tif'.format(
+                self._lakeName,
+                self._startYear,
+                self._endYear,
+                self._createStr)
 
         maxExtentClippedFilePath = os.path.join(
             self._maxExtentDir, maxExtentClippedFilename)
@@ -311,7 +334,7 @@ class LakeExtract(object):
         """
         polygonOutputFile = os.path.join(
             self._polygonDir,
-            '{}_polygonized.shp'.format(self._lakeName))
+            'Lake.{}.Polygonized.{}.shp'.format(self._lakeName, self._createStr))
 
         cmd = 'gdal_polygonize.py' + \
             ' ' + maxExtentClippedFilePath + \
@@ -333,7 +356,7 @@ class LakeExtract(object):
         Clean polygons.
         """
         polygonLakesCleanedFilePath = polygonOutputFile.replace(
-            'polygonized.shp', 'polygonized_cleaned.shp')
+            'polygonized.shp', 'polygonized.cleaned.shp')
         polygonLakes = gpd.read_file(polygonOutputFile)
         polygonLakes = polygonLakes[polygonLakes['DN'] == 1]
         polygonLakes.to_file(polygonLakesCleanedFilePath)
@@ -376,7 +399,7 @@ class LakeExtract(object):
         """
         dissolvedPolygonOutputPath = os.path.join(
             self._polygonDir,
-            '{}_dissolved.shp'.format(self._lakeName))
+            'Lake.{}.Dissolved.{}.shp'.format(self._lakeName, self._createStr))
         initialBufferedPolygon = gpd.read_file(inputBufferFilePath)
         if len(initialBufferedPolygon) > 1:
             LakeExtract._dissolve(inputBufferFilePath,
@@ -451,7 +474,8 @@ class LakeExtract(object):
         """
         targetLakeFilePath = os.path.join(
             self._polygonDir,
-            '{}_centered_polygon.gpkg'.format(self._lakeName)
+            'Lake.{}.CenteredPolygon.{}.gpkg'.format(self._lakeName,
+                                                     self._createStr)
         )
         targetLakeDF = gpd.read_file(dissolvedPolygonInput)
         targetLakeDF['area'] = targetLakeDF['geometry'].area
@@ -476,11 +500,12 @@ class LakeExtract(object):
                 self._logger.debug(
                     'Extracting for ' +
                     '{}'.format(os.path.basename(mod44wFilePath)))
-            year = os.path.basename(mod44wFilePath).split('.')[1]
+            year = os.path.basename(mod44wFilePath).split('.')[1][1:5]
             subdatasetName = gdal.Open(mod44wFilePath).GetSubDatasets()[0][0]
             bufferedLakeFilePath = os.path.join(
                 self._bufferedDir,
-                '{}.{}.Lake.tif'.format(self._lakeName, year))
+                'Lake.{}.{}.{}.tif'.format(self._lakeName, year,
+                                           self._createStr))
             cmd = 'gdalwarp' + \
                 ' -overwrite' + \
                 ' -of GTiff' + \
@@ -501,7 +526,9 @@ class LakeExtract(object):
 
             finalLakePath = os.path.join(
                 self._finalBufferedDir,
-                'Lake.Buffered.{}.MOD44W.{}.tif'.format(self._lakeName, year))
+                'Lake.{}.MOD44W.{}.{}.tif'.format(self._lakeName,
+                                                  year,
+                                                  self._createStr))
 
             cmd = 'gdalwarp' + \
                 ' -overwrite' + \
@@ -527,3 +554,16 @@ class LakeExtract(object):
             outputList.append(finalLakePath)
             if self._logger:
                 self._logger.info('Generated {}'.format(finalLakePath))
+
+    # -------------------------------------------------------------------------
+    # _getPostStr()
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _getPostStr() -> str:
+        sdtdate = datetime.datetime.now()
+        year = sdtdate.year
+        hm = sdtdate.strftime('%H%M')
+        sdtdate = sdtdate.timetuple()
+        jdate = sdtdate.tm_yday
+        post_str = '{}{:03}{}'.format(year, jdate, hm)
+        return post_str
