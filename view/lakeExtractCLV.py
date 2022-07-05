@@ -37,7 +37,7 @@ def main() -> None:
                         type=int,
                         help='Ending year.')
 
-    parser.add_argument('-lakename',
+    parser.add_argument('-lakenumber',
                         required=True,
                         type=str,
                         help='Name of the lake to process. ' +
@@ -64,7 +64,7 @@ def main() -> None:
 
     lakeExtract = LakeExtract(outDir=args.o,
                               bbox=args.bbox,
-                              lakeName=args.lakename,
+                              lakeNumber=args.lakenumber,
                               startYear=args.start,
                               endYear=args.end,
                               logger=logger)

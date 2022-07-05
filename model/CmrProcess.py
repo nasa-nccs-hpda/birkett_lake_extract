@@ -46,6 +46,7 @@ class CmrProcess(object):
         self._maxPages = maxPages
         self._logger = logger
 
+        CmrProcess._validateLatLonInput(lonLat)
         self._lonLat = lonLat
         self._dayNightFlag = dayNightFlag
 
@@ -194,3 +195,33 @@ class CmrProcess(object):
                 'day_night_flag': dayNight}
 
         return resultDictProcessed
+
+    # -------------------------------------------------------------------------
+    # _validateLatLonInput()
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _validateLatLonInput(lonLat: str) -> None:
+        bbox = list(map(float, lonLat.split(',')))
+        minLon = bbox[0]
+        maxLon = bbox[2]
+        minLat = bbox[1]
+        maxLat = bbox[3]
+        if minLon < CmrProcess.LONGITUDE_RANGE[0] or minLon > maxLon:
+            raise RuntimeError(
+                '{} out of range: {}.'.format(minLon,
+                                              CmrProcess.LONGITUDE_RANGE[0]))
+        if maxLon > CmrProcess.LONGITUDE_RANGE[1] or maxLon < minLon:
+            raise RuntimeError(
+                '{} out of range: {}'.format(maxLon,
+                                             CmrProcess.LONGITUDE_RANGE[1])
+            )
+        if minLat < CmrProcess.LATITUDE_RANGE[0] or minLat > maxLat:
+            raise RuntimeError(
+                '{} out of range: {}.'.format(minLat,
+                                              CmrProcess.LATITUDE_RANGE[0])
+            )
+        if maxLat > CmrProcess.LATITUDE_RANGE[1] or maxLat < minLat:
+            raise RuntimeError(
+                '{} out of range: {}'.format(maxLat,
+                                             CmrProcess.LATITUDE_RANGE[1])
+            )

@@ -19,6 +19,6 @@ class LakeExtractTestCase(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             LakeExtract(outDir='doesnotexistdir',
                         bbox=['12', '20', '12.5', '20.5'],
-                        lakeName='dummyLake',
+                        lakeNumber='772',
                         startYear=2001,
                         endYear=2015)

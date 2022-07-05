@@ -4,17 +4,19 @@ import os
 from typing import Tuple
 import warnings
 
-from osgeo import gdal
 import geopandas as gpd
 import numpy as np
+from osgeo import gdal
 from osgeo import ogr
-
-from core.model.BaseFile import BaseFile
-from core.model.SystemCommand import SystemCommand
-from core.model.GeospatialImageFile import GeospatialImageFile
+from osgeo import osr
 
 from birkett_lake_extract.model.CmrProcess import CmrProcess
 from birkett_lake_extract.model.libraries.daac_download import httpdl
+
+from core.model.BaseFile import BaseFile
+from core.model.Envelope import Envelope
+from core.model.SystemCommand import SystemCommand
+from core.model.GeospatialImageFile import GeospatialImageFile
 
 
 class LakeExtract(object):
@@ -34,14 +36,14 @@ class LakeExtract(object):
     def __init__(self,
                  bbox: list,
                  outDir: str,
-                 lakeName: str,
+                 lakeNumber: str,
                  startYear: int,
                  endYear: int,
                  logger: logging.Logger or None = None) -> None:
 
         self._logger = logger
         self._bbox = bbox
-        self._lakeName = lakeName
+        self._lakeNumber = lakeNumber
         self._startYear = startYear
         self._endYear = endYear
         self._outDir = BaseFile(outDir).fileName()
@@ -76,6 +78,7 @@ class LakeExtract(object):
 
         self._yearRange = np.arange(self._startYear, self._endYear+1)
         self._createStr = LakeExtract._getPostStr()
+        self._envelope = self._createEnvelope(self._bbox)
 
     # -------------------------------------------------------------------------
     # _makeOutputDirs()
@@ -91,6 +94,28 @@ class LakeExtract(object):
         os.makedirs(self._finalBufferedDir, exist_ok=True)
 
     # -------------------------------------------------------------------------
+    # _createEnvelope()
+    # -------------------------------------------------------------------------
+    def _createEnvelope(self) -> Envelope:
+        """
+        Creates spatial envelope.
+        """
+        envelope = Envelope()
+
+        ulx = self._bbox[0]
+        uly = self._bbox[3]
+        lrx = self._bbox[2]
+        lry = self._bbox[1]
+
+        outRasterSRS = osr.SpatialReference()
+        outRasterSRS.ImportFromEPSG(4326)
+
+        envelope.addPoint(float(ulx), float(uly), 0.0, outRasterSRS)
+        envelope.addPoint(float(lrx), float(lry), 0.0, outRasterSRS)
+
+        return envelope
+
+    # -------------------------------------------------------------------------
     # extractLakes()
     # -------------------------------------------------------------------------
     def extractLakes(self) -> None:
@@ -104,8 +129,7 @@ class LakeExtract(object):
             mod44w_list = self._getMOD44W()
             tile = os.path.basename(mod44w_list[0]).split('.')[2]
             maxExtentFilePath = self._makeMaxExtent(mod44w_list, tile)
-            maxExtentClippedFilePath = self._clipMaxExtent(maxExtentFilePath)
-
+            maxExtentFilePathClipped = self._clipMaxExtent(maxExtentFilePath)
         except RuntimeError:
 
             # ---
@@ -115,17 +139,17 @@ class LakeExtract(object):
             mod44w_list = self._getMOD44W(index=1)
             tile = os.path.basename(mod44w_list[0]).split('.')[2]
             maxExtentFilePath = self._makeMaxExtent(mod44w_list, tile)
-            maxExtentClippedFilePath = self._clipMaxExtent(maxExtentFilePath)
+            maxExtentFilePathClipped = self._clipMaxExtent(maxExtentFilePath)
 
         polygonizedLakeFilePath = \
-            self._polygonizeLake(maxExtentClippedFilePath)
+            self._polygonizeLake(maxExtentFilePathClipped)
         cleanedPolygonLakeFilePath = \
             self._cleanPolygon(polygonizedLakeFilePath)
 
         bufferedPolygonFilePath = \
             os.path.join(self._polygonDir,
                          'Lake.{}.InitialBuffered.{}.shp'.format(
-                             self._lakeName,
+                             self._lakeNumber,
                              self._createStr))
 
         bufferedPolygonFilePath = self._createBuffer(
@@ -139,8 +163,9 @@ class LakeExtract(object):
         targetLakeFilePath = self._getTargetLake(dissolvedPolygonOutputPath)
 
         bufferedFullFilePath = os.path.join(
-            self._polygonDir, 'Lake.{}.Buffered.{}.shp'.format(self._lakeName,
-                                                               self._createStr))
+            self._polygonDir,
+            'Lake.{}.Buffered.{}.shp'.format(self._lakeNumber,
+                                             self._createStr))
 
         bufferedFullFilePath = self._createBuffer(targetLakeFilePath,
                                                   bufferedFullFilePath,
@@ -236,7 +261,6 @@ class LakeExtract(object):
         maxExtentOutBand = maxExtentOutDS.GetRasterBand(1)
         maxExtentOutBand.WriteArray(maxExtent)
         maxExtentOutBand.SetNoDataValue(250)
-        maxExtentOutBand.FlushCache()
         maxExtentOutDS = None
         maxExtentOutBand = None
         driver = None
@@ -281,25 +305,9 @@ class LakeExtract(object):
         """
         Clip a max extent product to the bounding box.
         """
-        llList = self._bbox
-        if self._logger:
-            self._logger.debug(llList)
-
-        try:
-            ulx = llList[0]
-            uly = llList[3]
-            lrx = llList[2]
-            lry = llList[1]
-        except IndexError:
-            msg = 'Bounding box: ' + \
-                '{} does not have enough elements'.format(self._bbox)
-            if self._logger:
-                self._logger.error(msg)
-            raise IndexError(msg)
-
         maxExtentClippedFilename = \
             'Lake.{}.MOD44W.MaxExtentClipped.{}.{}.{}.tif'.format(
-                self._lakeName,
+                self._lakeNumber,
                 self._startYear,
                 self._endYear,
                 self._createStr)
@@ -309,10 +317,10 @@ class LakeExtract(object):
 
         cmd = 'gdal_translate' + \
             ' -projwin' + \
-            ' ' + ulx + \
-            ' ' + uly + \
-            ' ' + lrx + \
-            ' ' + lry + \
+            ' ' + str(self._envelope.ulx()) + \
+            ' ' + str(self._envelope.uly()) + \
+            ' ' + str(self._envelope.lrx()) + \
+            ' ' + str(self._envelope.lry()) + \
             ' -projwin_srs' + \
             ' ' + LakeExtract.BBOX_SRS_EPSG + \
             ' -epo' + \
@@ -334,7 +342,8 @@ class LakeExtract(object):
         """
         polygonOutputFile = os.path.join(
             self._polygonDir,
-            'Lake.{}.Polygonized.{}.shp'.format(self._lakeName, self._createStr))
+            'Lake.{}.Polygonized.{}.shp'.format(self._lakeNumber,
+                                                self._createStr))
 
         cmd = 'gdal_polygonize.py' + \
             ' ' + maxExtentClippedFilePath + \
@@ -399,7 +408,8 @@ class LakeExtract(object):
         """
         dissolvedPolygonOutputPath = os.path.join(
             self._polygonDir,
-            'Lake.{}.Dissolved.{}.shp'.format(self._lakeName, self._createStr))
+            'Lake.{}.Dissolved.{}.shp'.format(self._lakeNumber,
+                                              self._createStr))
         initialBufferedPolygon = gpd.read_file(inputBufferFilePath)
         if len(initialBufferedPolygon) > 1:
             LakeExtract._dissolve(inputBufferFilePath,
@@ -474,7 +484,7 @@ class LakeExtract(object):
         """
         targetLakeFilePath = os.path.join(
             self._polygonDir,
-            'Lake.{}.CenteredPolygon.{}.gpkg'.format(self._lakeName,
+            'Lake.{}.CenteredPolygon.{}.gpkg'.format(self._lakeNumber,
                                                      self._createStr)
         )
         targetLakeDF = gpd.read_file(dissolvedPolygonInput)
@@ -489,7 +499,7 @@ class LakeExtract(object):
     # _extractLakePerYear()
     # -------------------------------------------------------------------------
     def _extractLakePerYear(self, mod44wList: list,
-                            finalBufferedPolyInput: str) -> list:
+                            finalBufferedPolyInput: str) -> None:
         """
         For each MOD44W product in the year range, output the final buffered
         product.
@@ -504,7 +514,7 @@ class LakeExtract(object):
             subdatasetName = gdal.Open(mod44wFilePath).GetSubDatasets()[0][0]
             bufferedLakeFilePath = os.path.join(
                 self._bufferedDir,
-                'Lake.{}.{}.{}.tif'.format(self._lakeName, year,
+                'Lake.{}.{}.{}.tif'.format(self._lakeNumber, year,
                                            self._createStr))
             cmd = 'gdalwarp' + \
                 ' -overwrite' + \
@@ -516,19 +526,17 @@ class LakeExtract(object):
                 ' ' + subdatasetName + \
                 ' ' + bufferedLakeFilePath
 
-            SystemCommand(cmd, logger=self._logger, raiseException=True)
+            SystemCommand(cmd, raiseException=True)
 
-            bboxList = self._bbox
-            xmin = bboxList[0]
-            xmax = bboxList[2]
-            ymin = bboxList[1]
-            ymax = bboxList[3]
+            xmin = str(self._envelope.ulx())
+            xmax = str(self._envelope.lrx())
+            ymin = str(self._envelope.lry())
+            ymax = str(self._envelope.uly())
 
             finalLakePath = os.path.join(
                 self._finalBufferedDir,
-                'Lake.{}.MOD44W.{}.{}.tif'.format(self._lakeName,
-                                                  year,
-                                                  self._createStr))
+                'lake_{}_MOD44W_{}_C6.tif'.format(self._lakeNumber,
+                                                  year))
 
             cmd = 'gdalwarp' + \
                 ' -overwrite' + \
