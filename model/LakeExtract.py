@@ -78,7 +78,7 @@ class LakeExtract(object):
 
         self._yearRange = np.arange(self._startYear, self._endYear+1)
         self._createStr = LakeExtract._getPostStr()
-        self._envelope = self._createEnvelope(self._bbox)
+        self._envelope = self._createEnvelope()
 
     # -------------------------------------------------------------------------
     # _makeOutputDirs()
