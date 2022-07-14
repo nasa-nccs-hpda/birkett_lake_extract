@@ -1,6 +1,7 @@
 import datetime
 import logging
 import os
+import shutil
 from typing import Tuple
 import warnings
 
@@ -48,12 +49,12 @@ class LakeExtract(object):
         self._endYear = endYear
         self._outDir = BaseFile(outDir).fileName()
 
-        self._mod44wDir = os.path.join(self._outDir, '1-MOD44W')
-        self._maxExtentDir = os.path.join(self._outDir, '2-maxextent')
-        self._polygonDir = os.path.join(self._outDir, '3-polygons')
-        self._bufferedDir = os.path.join(self._outDir, '4-buffered-rasters')
+        self._mod44wDir = os.path.join(self._outDir, 'MOD44W')
+        self._maxExtentDir = os.path.join(self._outDir, 'maxextent')
+        self._polygonDir = os.path.join(self._outDir, 'polygons')
+        self._bufferedDir = os.path.join(self._outDir, 'buffered-rasters')
         self._finalBufferedDir = os.path.join(self._outDir,
-                                              '5-final-buffered-rasters')
+                                              'final-buffered-rasters')
         self._makeOutputDirs()
         if self._endYear > 2015:
             msg = \
@@ -172,6 +173,7 @@ class LakeExtract(object):
                                                   LakeExtract.BUFFER_6PX)
 
         self._extractLakePerYear(mod44w_list, bufferedFullFilePath)
+        self._rmOutputDirs()
 
     # -------------------------------------------------------------------------
     # _getMOD44W()
@@ -562,6 +564,18 @@ class LakeExtract(object):
             outputList.append(finalLakePath)
             if self._logger:
                 self._logger.info('Generated {}'.format(finalLakePath))
+
+    # -------------------------------------------------------------------------
+    # _rmOutputDirs()
+    # -------------------------------------------------------------------------
+    def _rmOutputDirs(self) -> None:
+        """
+        Creates the output directories.
+        """
+        shutil.rmtree(self._mod44wDir)
+        shutil.rmtree(self._maxExtentDir)
+        shutil.rmtree(self._polygonDir)
+        shutil.rmtree(self._bufferedDir)
 
     # -------------------------------------------------------------------------
     # _getPostStr()
