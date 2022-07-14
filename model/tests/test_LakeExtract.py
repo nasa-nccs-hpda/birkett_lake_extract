@@ -1,3 +1,5 @@
+import os
+import shutil
 import unittest
 
 from birkett_lake_extract.model.LakeExtract import LakeExtract
@@ -22,3 +24,22 @@ class LakeExtractTestCase(unittest.TestCase):
                         lakeNumber='772',
                         startYear=2001,
                         endYear=2015)
+
+    def testCreateAndDelete(self):
+        leTest = LakeExtract(outDir='.',
+                             bbox=['12', '20', '12.5', '20.5'],
+                             lakeNumber='772',
+                             startYear=2001,
+                             endYear=2015)
+        self.assertTrue(os.path.exists(leTest._mod44wDir))
+        self.assertTrue(os.path.exists(leTest._maxExtentDir))
+        self.assertTrue(os.path.exists(leTest._polygonDir))
+        self.assertTrue(os.path.exists(leTest._bufferedDir))
+        self.assertTrue(os.path.exists(leTest._finalBufferedDir))
+        leTest._rmOutputDirs()
+        self.assertFalse(os.path.exists(leTest._mod44wDir))
+        self.assertFalse(os.path.exists(leTest._maxExtentDir))
+        self.assertFalse(os.path.exists(leTest._polygonDir))
+        self.assertFalse(os.path.exists(leTest._bufferedDir))
+        self.assertTrue(os.path.exists(leTest._finalBufferedDir))
+        shutil.rmtree(leTest._finalBufferedDir)
