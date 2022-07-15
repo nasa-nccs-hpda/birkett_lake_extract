@@ -556,6 +556,7 @@ class LakeExtract(object):
                 ' ' + str(LakeExtract.TR_P) + \
                 ' ' + str(LakeExtract.TR_N) + \
                 ' -dstnodata 3.0' + \
+                ' -co COMPRESS=LZW' + \
                 ' ' + bufferedLakeFilePath + \
                 ' ' + finalLakePath
 
