@@ -47,7 +47,8 @@ class LakeExtract(object):
         self._lakeNumber = lakeNumber
         self._startYear = startYear
         self._endYear = endYear
-        self._outDir = BaseFile(outDir).fileName()
+        self._outDir = outDir
+        os.makedirs(self._outDir, exist_ok=True)
 
         self._mod44wDir = os.path.join(self._outDir, 'MOD44W')
         self._maxExtentDir = os.path.join(self._outDir, 'maxextent')
