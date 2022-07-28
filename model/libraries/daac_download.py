@@ -20,6 +20,7 @@ import logging
 import requests
 from requests.adapters import HTTPAdapter
 from datetime import datetime
+import warnings
 
 DEFAULT_CHUNK_SIZE = 131072
 
@@ -55,7 +56,7 @@ def isRequestAuthFailure(req):
 
 
 def httpdl(urlStr, localpath='.', outputfilename=None, ntries=5,
-           uncompress=False, timeout=30., verbose=0, force_download=False,
+           uncompress=False, timeout=120., verbose=0, force_download=False,
            chunk_size=DEFAULT_CHUNK_SIZE):
 
     status = 0
@@ -79,57 +80,64 @@ def httpdl(urlStr, localpath='.', outputfilename=None, ntries=5,
             headers = {
                 "If-Modified-Since": modified_since.strftime("%a, %d %b\
                     %Y %H:%M:%S GMT")}
+    try:
+        with closing(obpgSession.get(urlStr,
+                                     stream=True,
+                                     timeout=timeout,
+                                     headers=headers)) as req:
 
-    with closing(obpgSession.get(urlStr,
-                                 stream=True,
-                                 timeout=timeout,
-                                 headers=headers)) as req:
+            if req.status_code != 200:
+                status = req.status_code
+            elif isRequestAuthFailure(req):
+                status = 401
+            else:
+                if not os.path.exists(localpath):
+                    os.umask(0o02)
+                    os.makedirs(localpath, mode=0o2775)
 
-        if req.status_code != 200:
-            status = req.status_code
-        elif isRequestAuthFailure(req):
-            status = 401
-        else:
-            if not os.path.exists(localpath):
-                os.umask(0o02)
-                os.makedirs(localpath, mode=0o2775)
+                if not outputfilename:
+                    cd = req.headers.get('Content-Disposition')
+                    if cd:
+                        outputfilename = re.findall("filename=(.+)", cd)[0]
+                    else:
+                        outputfilename = urlStr.split('/')[-1]
 
-            if not outputfilename:
-                cd = req.headers.get('Content-Disposition')
-                if cd:
-                    outputfilename = re.findall("filename=(.+)", cd)[0]
-                else:
-                    outputfilename = urlStr.split('/')[-1]
+                ofile = os.path.join(localpath, outputfilename)
 
-            ofile = os.path.join(localpath, outputfilename)
+                # This is here just in case we didn't get a 304
+                # when we should have...
+                # Tue, 11 Dec 2012 10:10:24 GMT
+                download = True
+                if 'last-modified' in req.headers:
+                    remote_lmt = req.headers['last-modified']
+                    remote_ftime = datetime.strptime(
+                        remote_lmt, "%a, %d %b %Y %H:%M:%S GMT").replace(
+                            tzinfo=None)
+                    if modified_since and not force_download:
+                        if (remote_ftime - modified_since).total_seconds() < 0:
+                            download = False
+                            if verbose:
+                                print(
+                                    "Skipping download of %s" % outputfilename)
 
-            # This is here just in case we didn't get a 304
-            # when we should have...
-            # Tue, 11 Dec 2012 10:10:24 GMT
-            download = True
-            if 'last-modified' in req.headers:
-                remote_lmt = req.headers['last-modified']
-                remote_ftime = datetime.strptime(
-                    remote_lmt, "%a, %d %b %Y %H:%M:%S GMT").replace(
-                        tzinfo=None)
-                if modified_since and not force_download:
-                    if (remote_ftime - modified_since).total_seconds() < 0:
-                        download = False
-                        if verbose:
-                            print("Skipping download of %s" % outputfilename)
+                if download:
+                    with open(ofile, 'wb') as fd:
+                        for chunk in req.iter_content(chunk_size=chunk_size):
+                            if chunk:  # filter out keep-alive new chunks
+                                fd.write(chunk)
 
-            if download:
-                with open(ofile, 'wb') as fd:
-                    for chunk in req.iter_content(chunk_size=chunk_size):
-                        if chunk:  # filter out keep-alive new chunks
-                            fd.write(chunk)
-
-                if uncompress and re.search(".(Z|gz|bz2)$", ofile):
-                    compressStatus = uncompressFile(ofile)
-                    if compressStatus:
-                        status = compressStatus
-                else:
-                    status = 0
+                    if uncompress and re.search(".(Z|gz|bz2)$", ofile):
+                        compressStatus = uncompressFile(ofile)
+                        if compressStatus:
+                            status = compressStatus
+                    else:
+                        status = 0
+    except requests.exceptions.ConnectionError:
+        msg = 'WARNING: Max retries exceeded with url: {}'.format(urlStr) + \
+            '\n Number of tries allowed: ' + \
+            '{}. \n Timeout limit: {}'.format(ntries, timeout)
+        warnings.warn(msg)
+        status = 599
 
     return status
 

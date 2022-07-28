@@ -14,17 +14,6 @@ from birkett_lake_extract.model.LakeExtract import LakeExtract
 # -----------------------------------------------------------------------------
 class LakeExtractTestCase(unittest.TestCase):
 
-    # -------------------------------------------------------------------------
-    # testInit
-    # -------------------------------------------------------------------------
-    def testInit(self):
-        with self.assertRaises(RuntimeError):
-            LakeExtract(outDir='doesnotexistdir',
-                        bbox=['12', '20', '12.5', '20.5'],
-                        lakeNumber='772',
-                        startYear=2001,
-                        endYear=2015)
-
     def testCreateAndDelete(self):
         leTest = LakeExtract(outDir='.',
                              bbox=['12', '20', '12.5', '20.5'],
