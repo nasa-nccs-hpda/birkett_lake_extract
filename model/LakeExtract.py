@@ -14,7 +14,6 @@ from osgeo import osr
 from birkett_lake_extract.model.CmrProcess import CmrProcess
 from birkett_lake_extract.model.libraries.daac_download import httpdl
 
-from core.model.BaseFile import BaseFile
 from core.model.Envelope import Envelope
 from core.model.SystemCommand import SystemCommand
 from core.model.GeospatialImageFile import GeospatialImageFile
@@ -128,12 +127,12 @@ class LakeExtract(object):
             self._logger.debug('In extractLakes')
 
         try:
+            mod44w_list = []
             mod44w_list = self._getMOD44W()
             tile = os.path.basename(mod44w_list[0]).split('.')[2]
             maxExtentFilePath = self._makeMaxExtent(mod44w_list, tile)
             maxExtentFilePathClipped = self._clipMaxExtent(maxExtentFilePath)
         except RuntimeError:
-
             # ---
             # If there are more than one tile, try one that isn't outside of
             # extent.
@@ -142,6 +141,16 @@ class LakeExtract(object):
             tile = os.path.basename(mod44w_list[0]).split('.')[2]
             maxExtentFilePath = self._makeMaxExtent(mod44w_list, tile)
             maxExtentFilePathClipped = self._clipMaxExtent(maxExtentFilePath)
+
+        if len(mod44w_list) == 0:
+            msgPt1 = 'Could not download any years' + \
+                ' of MOD44W data from {} to {}'.format(self._startYear,
+                                                       self._endYear)
+            msgPt2 = 'If you see many connection warnings and' + \
+                ' errors it is ' + \
+                'likely due to high load on LP DAAC' + \
+                ' data download servers. Try again a different time.'
+            raise RuntimeError('{}\n{}'.format(msgPt1, msgPt2))
 
         polygonizedLakeFilePath = \
             self._polygonizeLake(maxExtentFilePathClipped)
@@ -205,16 +214,21 @@ class LakeExtract(object):
             if os.path.exists(filePath):
                 mod44List.append(filePath)
                 continue
+
             request_status = httpdl(urlStr=mod44DownloadURL,
                                     localpath=self._mod44wDir,
                                     uncompress=True)
             if request_status == 0 or request_status == 200 \
                     or request_status == 304:
                 if not os.path.exists(filePath):
-                    msg = '{} was now downloaded from {}'.format(
+                    msg = '{} was not downloaded from {}'.format(
                         filePath, mod44DownloadURL)
                     raise FileNotFoundError(msg)
                 mod44List.append(filePath)
+            elif request_status == 599:
+                msg = 'WARNING: experienced too many' + \
+                    ' timeout or connection errors.'
+                warnings.warn(msg)
         return mod44List
 
     # -------------------------------------------------------------------------
