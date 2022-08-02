@@ -20,7 +20,6 @@ import logging
 import requests
 from requests.adapters import HTTPAdapter
 from datetime import datetime
-import warnings
 
 DEFAULT_CHUNK_SIZE = 131072
 
@@ -133,11 +132,12 @@ def httpdl(urlStr, localpath='.', outputfilename=None, ntries=5,
                     else:
                         status = 0
     except requests.exceptions.ConnectionError:
-        msg = 'WARNING: Max retries exceeded with url: {}'.format(urlStr) + \
+        msg = 'ERROR: Max retries exceeded with url: {}'.format(urlStr) + \
             '\n Number of tries allowed: ' + \
-            '{}. \n Timeout limit: {}'.format(ntries, timeout)
-        warnings.warn(msg)
-        status = 599
+            '{}. \n Timeout limit: {}'.format(ntries, timeout) + \
+            '\n This is likely due to LP DAAC overloading requests.' + \
+            ' Please try again another time.'
+        raise RuntimeError(msg)
 
     return status
 
