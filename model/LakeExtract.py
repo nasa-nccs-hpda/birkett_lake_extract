@@ -142,16 +142,6 @@ class LakeExtract(object):
             maxExtentFilePath = self._makeMaxExtent(mod44w_list, tile)
             maxExtentFilePathClipped = self._clipMaxExtent(maxExtentFilePath)
 
-        if len(mod44w_list) == 0:
-            msgPt1 = 'Could not download any years' + \
-                ' of MOD44W data from {} to {}'.format(self._startYear,
-                                                       self._endYear)
-            msgPt2 = 'If you see many connection warnings and' + \
-                ' errors it is ' + \
-                'likely due to high load on LP DAAC' + \
-                ' data download servers. Try again a different time.'
-            raise RuntimeError('{}\n{}'.format(msgPt1, msgPt2))
-
         polygonizedLakeFilePath = \
             self._polygonizeLake(maxExtentFilePathClipped)
         cleanedPolygonLakeFilePath = \
