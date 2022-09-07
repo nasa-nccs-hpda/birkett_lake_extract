@@ -60,7 +60,7 @@ floodmap_4.1.4.sif
 ### <b> Birkett lake extract application command line invocations</b>
 
 ```shell
-$ python birkett_lake_extract/view/lakeExtractCLV.py \
+$ python /usr/local/ilab/birkett_lake_extract/view/lakeExtractCLV.py \
     -bbox <BOUNDING BOX OF LAKE IN DECIMAL LAT LON FORM> \
     -lakenumber <LAKE NUMBER TO USE FOR OUTPUT FILE NAMES> \
     -start <START YEAR TO USE FOR MOD44W PRODUCT SEARCH> \
@@ -79,7 +79,7 @@ $ python birkett_lake_extract/view/lakeExtractCLV.py \
 Example
 
 ```shell
-$ python birkett_lake_extract/view/lakeExtractCLV.py \
+$ python /usr/local/ilab/birkett_lake_extract/view/lakeExtractCLV.py \
     -o output \
     -start 2001 \
     -end 2015 \
