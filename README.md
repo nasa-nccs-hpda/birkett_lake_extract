@@ -60,7 +60,7 @@ floodmap_4.1.4.sif
 ### <b> Birkett lake extract application command line invocations</b>
 
 ```shell
-$ python python birkett_lake_extract/view/lakeExtractCLV.py \
+$ python birkett_lake_extract/view/lakeExtractCLV.py \
     -bbox <BOUNDING BOX OF LAKE IN DECIMAL LAT LON FORM> \
     -lakenumber <LAKE NUMBER TO USE FOR OUTPUT FILE NAMES> \
     -start <START YEAR TO USE FOR MOD44W PRODUCT SEARCH> \
@@ -133,7 +133,7 @@ $ singularity exec -B /adapt,/gpfsm,/explore,/panfs,/css,/nfs4m \
     python /usr/local/ilab/birkett_lake_extract/view/lakeExtractCLV.py -o output -start 2001 -end 2015 -lakenumber 366 -bbox -122.52 42.8 -121.69 43.05 
 ```
 
-Expected output:
+Expected output messages:
 
 
 ```shell
@@ -219,5 +219,16 @@ Expected output:
 2022-07-11 10:47:51; INFO; Generated output/5-final-buffered-rasters/lake_366_MOD44W_2015_C6.tif
 ```
 
-
+Expected final output files:
+```shell
+[cssprad1@ilab109 08.04.22.main.production]$ ls output/final-buffered-rasters/
+lake_366_MOD44W_2001_C6.tif  lake_366_MOD44W_2009_C6.tif
+lake_366_MOD44W_2002_C6.tif  lake_366_MOD44W_2010_C6.tif
+lake_366_MOD44W_2003_C6.tif  lake_366_MOD44W_2011_C6.tif
+lake_366_MOD44W_2004_C6.tif  lake_366_MOD44W_2012_C6.tif
+lake_366_MOD44W_2005_C6.tif  lake_366_MOD44W_2013_C6.tif
+lake_366_MOD44W_2006_C6.tif  lake_366_MOD44W_2014_C6.tif
+lake_366_MOD44W_2007_C6.tif  lake_366_MOD44W_2015_C6.tif
+lake_366_MOD44W_2008_C6.tif
+```
 </div>
