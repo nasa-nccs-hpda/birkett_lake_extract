@@ -36,7 +36,7 @@ Note: The version number is subject to change.
 
 
 ```shell
-singularity pull oras://gitlab.nccs.nasa.gov:5050/cisto-ilab/containers/floodmap:4.1.3
+singularity pull oras://gitlab.nccs.nasa.gov:5050/cisto-ilab/containers/floodmap:4.1.4
 ```
 
 ```
@@ -50,7 +50,7 @@ ls
 ```
 
 ```
-floodmap_4.1.3.sif
+floodmap_4.1.4.sif
 ```
 
 <br/>
@@ -98,7 +98,7 @@ $ singularity exec -B <DRIVE-TO-MOUNT-0>,<DRIVE-TO-MOUNT-1> <PATH-TO-CONTAINER> 
 For example, in NCCS ADAPT, we need to mount our central storage
 
 ```shell
-$ singularity exec -B /adapt,/gpfsm,/explore,/panfs,/css,/nfs4m floodmap_4.1.3.sif COMMAND
+$ singularity exec -B /adapt,/gpfsm,/explore,/panfs,/css,/nfs4m floodmap_4.1.4.sif COMMAND
 ```
 
 Executing the birkett lake extract application follow these conventions:
@@ -116,7 +116,7 @@ $ singularity exec -B <DRIVE-TO-MOUNT-0>,<DRIVE-TO-MOUNT-1> <PATH-TO-CONTAINER> 
 An example:
 
 ```shell
-$ singularity exec -B /adapt,/gpfsm,/explore,/panfs,/css,/nfs4m floodmap_4.1.3.sif \
+$ singularity exec -B /adapt,/gpfsm,/explore,/panfs,/css,/nfs4m floodmap_4.1.4.sif \
     python /usr/local/ilab/birkett_lake_extract/view/lakeExtractCLV.py \
     -o output \
     -start 2001 \
@@ -129,7 +129,7 @@ $ singularity exec -B /adapt,/gpfsm,/explore,/panfs,/css,/nfs4m floodmap_4.1.3.s
 
 ```shell
 $ singularity exec -B /adapt,/gpfsm,/explore,/panfs,/css,/nfs4m \
-    /adapt/nobackup/people/iluser/ilab_containers/floodmap_4.1.3.sif \
+    /adapt/nobackup/people/iluser/ilab_containers/floodmap_4.1.4.sif \
     python /usr/local/ilab/birkett_lake_extract/view/lakeExtractCLV.py -o output -start 2001 -end 2015 -lakenumber 366 -bbox -122.52 42.8 -121.69 43.05 
 ```
 
