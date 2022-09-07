@@ -129,7 +129,7 @@ $ singularity exec -B /adapt,/gpfsm,/explore,/panfs,/css,/nfs4m floodmap_4.1.4.s
 
 ```shell
 $ singularity exec -B /adapt,/gpfsm,/explore,/panfs,/css,/nfs4m \
-    /adapt/nobackup/people/iluser/ilab_containers/floodmap_4.1.4.sif \
+    <path-to-container>/floodmap_4.1.4.sif \
     python /usr/local/ilab/birkett_lake_extract/view/lakeExtractCLV.py -o output -start 2001 -end 2015 -lakenumber 366 -bbox -122.52 42.8 -121.69 43.05 
 ```
 
